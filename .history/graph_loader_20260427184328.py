@@ -1,9 +1,10 @@
+# import the needed libraries
 import pandas as pd
 import networkx as nx
 import os
 
 
-# we will define the function that will build the graph to make it reusable and can be used easily
+# then now we will define the function that will build the graph to make it reusable and can be used easily
 # i will make it default as it is undirected until i get in the third parameter that the graph will be directed and getting true
 def build_graph(nodes_path,edges_path,node_id_col='id',source_col='source',target_col='target',directed=False):   
     # now the first main step is to build the graph using this csv files but we need to
@@ -21,6 +22,7 @@ def build_graph(nodes_path,edges_path,node_id_col='id',source_col='source',targe
 
 
     # now we load the data but what about if the user upload edges.csv but this file have only to column and not having the from?
+    # so we just need to make another check
     # cause the role is to not trust the user ever never
     
     if node_id_col not in nodes_df.columns:

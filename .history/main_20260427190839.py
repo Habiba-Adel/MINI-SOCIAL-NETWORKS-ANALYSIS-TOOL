@@ -15,5 +15,3 @@ metrics , avg_path =calculate_metrics(G)
 print("Graph Metrics:")
 for node , values in metrics.items():
     print(node , values)
-
-print ("Average Path Length:" , avg_path)    

@@ -16,4 +16,4 @@ print("Graph Metrics:")
 for node , values in metrics.items():
     print(node , values)
 
-print ("Average Path Length:" , avg_path)    
+print ("Average Path Lenght")    
