@@ -19,7 +19,7 @@ def detect_communities_girvan_newman(G, max_search_level=10):
     best_mod = -1.0
     best_communities = [set(eval_graph.nodes())]
 
-    # We iterate up to max_search_level to find the "Sweet Spot"
+    # We iterate up to max_search_level to find the best level result
     for _ in range(max_search_level):
         try:
             current_communities = next(comp_generator)
