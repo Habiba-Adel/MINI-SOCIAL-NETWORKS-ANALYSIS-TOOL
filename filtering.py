@@ -3,9 +3,9 @@ import networkx as nx
 def filter_by_centrality (G, metrics, measure, min, max):
     filtered_nodes= []
 
-    for node, metrics in metrics.items():
-        if measure in metrics:
-            val = metrics[measure]
+    for node, node_data in metrics.items():
+        if measure in node_data:
+            val = node_data[measure]
             if min <= val <= max:
                 filtered_nodes.append(node)
 

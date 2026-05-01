@@ -44,42 +44,49 @@ class NetworkAnalystPro(ctk.CTk):
 
         self.label_entry = ctk.CTkEntry(self.sidebar, placeholder_text="Ground Truth Col (Optional)")
         self.label_entry.grid(row=3, column=0, padx=30, pady=5, sticky="ew")
+ 
+        self.directed_var = ctk.BooleanVar(value=False)
+        self.chk_directed = ctk.CTkCheckBox(self.sidebar, text="Directed Graph", variable=self.directed_var)
+        self.chk_directed.grid(row=4, column=0, padx=30, pady=5, sticky="ew")
 
         self.btn_run = ctk.CTkButton(self.sidebar, text="🚀 RUN ANALYSIS", fg_color="#E91E63", hover_color="#C2185B", height=50, font=ctk.CTkFont(size=14, weight="bold"), command=self.process_data)
-        self.btn_run.grid(row=4, column=0, padx=30, pady=20, sticky="ew")
+        self.btn_run.grid(row=5, column=0, padx=30, pady=20, sticky="ew")
 
         self.sep1 = ctk.CTkLabel(self.sidebar, text="—" * 20, text_color="gray")
-        self.sep1.grid(row=5, column=0, pady=5)
+        self.sep1.grid(row=6, column=0, pady=5)
 
         self.layout_label = ctk.CTkLabel(self.sidebar, text="Graph Layout", font=ctk.CTkFont(size=12))
-        self.layout_label.grid(row=6, column=0, padx=30, pady=(5, 0), sticky="w")
+        self.layout_label.grid(row=7, column=0, padx=30, pady=(5, 0), sticky="w")
 
         self.layout_menu = ctk.CTkOptionMenu(self.sidebar, values=["Spring", "Circular", "Shell", "Spectral"], fg_color="#333333", button_color="#444444", command=lambda _: self.draw_network(self.G))
-        self.layout_menu.grid(row=7, column=0, padx=30, pady=10, sticky="ew")
+        self.layout_menu.grid(row=8, column=0, padx=30, pady=10, sticky="ew")
 
         self.sep2 = ctk.CTkLabel(self.sidebar, text="—" * 20, text_color="gray")
-        self.sep2.grid(row=8, column=0, pady=5)
+        self.sep2.grid(row=9, column=0, pady=5)
 
         self.filter_label = ctk.CTkLabel(self.sidebar, text="Filtering Options", font=ctk.CTkFont(size=12, weight="bold"))
-        self.filter_label.grid(row=9, column=0, padx=30, pady=(5, 0), sticky="w")
+        self.filter_label.grid(row=10, column=0, padx=30, pady=(5, 0), sticky="w")
 
         self.filter_menu = ctk.CTkOptionMenu(self.sidebar, values=["None", "Degree", "Betweenness", "Closeness", "Pagerank", "Community"], fg_color="#333333", button_color="#444444")
-        self.filter_menu.grid(row=10, column=0, padx=30, pady=10, sticky="ew")
+        self.filter_menu.grid(row=11, column=0, padx=30, pady=10, sticky="ew")
 
         self.filter_min = ctk.CTkEntry(self.sidebar, placeholder_text="Min Val / Comm ID")
-        self.filter_min.grid(row=11, column=0, padx=30, pady=5, sticky="ew")
+        self.filter_min.grid(row=12, column=0, padx=30, pady=5, sticky="ew")
 
         self.filter_max = ctk.CTkEntry(self.sidebar, placeholder_text="Max Val")
-        self.filter_max.grid(row=12, column=0, padx=30, pady=5, sticky="ew")
+        self.filter_max.grid(row=13, column=0, padx=30, pady=5, sticky="ew")
 
         self.btn_filter = ctk.CTkButton(self.sidebar, text="🔍 Apply Filter", fg_color="#008CBA", hover_color="#005f7a", height=35, font=ctk.CTkFont(size=13, weight="bold"), command=self.apply_filter)
-        self.btn_filter.grid(row=13, column=0, padx=30, pady=15, sticky="ew")
+        self.btn_filter.grid(row=14, column=0, padx=30, pady=15, sticky="ew")
 
         self.main_container = ctk.CTkTabview(self, segmented_button_selected_color="#E91E63", segmented_button_unselected_hover_color="#6A5ACD")
         self.main_container.grid(row=0, column=1, padx=25, pady=25, sticky="nsew")
         
         self.tab_viz = self.main_container.add("Visualization")
         self.tab_eval = self.main_container.add("Community Evaluation")
+        self.tab_stats = self.main_container.add("Network Statistics")
+        self.stats_textbox = ctk.CTkTextbox(self.tab_stats, font=ctk.CTkFont(family="Consolas", size=15))
+        self.stats_textbox.pack(fill="both", expand=True, padx=10, pady=10)
 
         self.fig, self.ax = plt.subplots(figsize=(8, 6), facecolor='#1A1A1A')
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.tab_viz)
@@ -108,8 +115,23 @@ class NetworkAnalystPro(ctk.CTk):
             messagebox.showerror("Missing Data", "Please select both Nodes and Edges CSV files!")
             return
         try:
+            is_directed = self.directed_var.get()
+            self.G = build_graph(self.node_path, self.edge_path, directed=is_directed)
             self.G = build_graph(self.node_path, self.edge_path)
             self.metrics, _ = calculate_metrics(self.G)
+            stats_text = "=== NETWORK METRICS ===\n\n"
+            stats_text += f"Total Nodes: {self.G.number_of_nodes()}\n"
+            stats_text += f"Total Edges: {self.G.number_of_edges()}\n\n"
+
+            # Sort nodes to find the top influencer by PageRank (Link Analysis)
+            sorted_pagerank = sorted(self.metrics.items(), key=lambda x: x[1]['Pagerank'], reverse=True)
+
+            stats_text += "--- TOP 5 INFLUENCERS (PageRank) ---\n"
+            for node, data in sorted_pagerank[:5]:
+               stats_text += f"Node {node}: {data['Pagerank']:.4f}\n"
+
+            self.stats_textbox.delete("1.0", "end")
+            self.stats_textbox.insert("1.0", stats_text)
             self.community_results = run_community_detection(self.G)
             
             self.draw_network(self.G)
@@ -118,7 +140,6 @@ class NetworkAnalystPro(ctk.CTk):
             self.main_container.set("Visualization")
         except Exception as e:
             messagebox.showerror("Graph Error", f"Something went wrong: {e}")
-
 
     def run_evaluation_comparison(self):
         gn_comms = self.community_results["girvan_newman"]["communities"]
@@ -185,35 +206,32 @@ class NetworkAnalystPro(ctk.CTk):
             messagebox.showerror("Input Error", "Please enter valid numbers in the filter boxes!")
 
     def draw_network(self, graph_to_draw):
-        if not graph_to_draw:
-            return
-            
-        self.ax.clear()
-        self.ax.set_axis_off()
+     if not graph_to_draw:
+        return
+        
+     self.ax.clear()
+     self.ax.set_axis_off()
 
-        choice = self.layout_menu.get().lower()
-        try:
-            if choice == "circular":
-                pos = nx.circular_layout(graph_to_draw)
-            elif choice == "shell":
-                pos = nx.shell_layout(graph_to_draw)
-            elif choice == "spectral":
-                pos = nx.spectral_layout(graph_to_draw)
-            else:
-                pos = nx.spring_layout(graph_to_draw, k=0.15, iterations=50)
-        except:
-            pos = nx.spring_layout(graph_to_draw)
+      # Get positions
+     pos = nx.spring_layout(graph_to_draw) # Add your layout logic here
+    
+    # Dynamically scale sizes based on Degree Centrality!
+    # Multiply degree by a factor to make differences visually obvious
+     node_sizes = []
+     for node in graph_to_draw.nodes():
+        # Fallback to 1 if node isn't in metrics (e.g., after filtering)
+        degree = self.metrics.get(node, {}).get("Degree", 0.1) 
+        node_sizes.append(300 + (degree * 2000))
 
-        color_map = []
-        for node in graph_to_draw.nodes():
-            color_map.append(graph_to_draw.nodes[node].get('louvain_community', 0))
+    # Color by Louvain Community
+     color_map = [graph_to_draw.nodes[node].get('louvain_community', 0) for node in graph_to_draw.nodes()]
 
-        nx.draw(graph_to_draw, pos, ax=self.ax, with_labels=True,
-                node_color=color_map, cmap=plt.cm.spring, 
-                node_size=1000, edge_color="#444444", width=1.5,
-                alpha=0.9, font_color="white", font_size=10, font_weight="bold")
+     nx.draw(graph_to_draw, pos, ax=self.ax, with_labels=True,
+            node_color=color_map, cmap=plt.cm.tab10, 
+            node_size=node_sizes, edge_color="#888888", width=1.0,
+            alpha=0.9, font_color="white", font_size=9, font_weight="bold")
 
-        self.canvas.draw()
+     self.canvas.draw()
 
 if __name__ == "__main__":
     app = NetworkAnalystPro()
