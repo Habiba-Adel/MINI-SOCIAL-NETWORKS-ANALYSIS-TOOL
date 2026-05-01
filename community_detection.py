@@ -6,27 +6,29 @@ import community as community_louvain
 # Girvan-Newman
 # -----------------------------
 
-def detect_communities_girvan_newman(G, max_search_level=None):
+def detect_communities_girvan_newman(G,target_count=None, max_search_level=20):
 
     # If there are no edges or the graph has only one node, we can consider all nodes as one community
     if G.number_of_edges() == 0 or G.number_of_nodes() <= 1:
         return [list(G.nodes())]
 
     eval_graph = G.to_undirected() if G.is_directed() else G
-    
-    if max_search_level is None:
-        max_search_level = eval_graph.number_of_edges()
 
     comp_generator = girvan_newman(eval_graph)
 
-    best_mod = None
+    best_mod = -1.0
     best_communities = None
 
     # We iterate up to max_search_level to find the best level result
     for _ in range(max_search_level):
         try:
             current_communities = next(comp_generator)
+            curr_len = len(current_communities)
         except StopIteration:
+            break
+        
+        if target_count and curr_len == target_count:
+            best_communities = current_communities
             break
 
         # Skip trivial single-node-per-community partitions on early iterations
@@ -35,20 +37,17 @@ def detect_communities_girvan_newman(G, max_search_level=None):
 
         try:
             current_mod = modularity(eval_graph, current_communities)
-        except Exception:
+            if current_mod > best_mod:
+                best_mod = current_mod
+                best_communities = current_communities
+        except:
             continue
 
-        if best_mod is None or current_mod > best_mod:
-            best_mod = current_mod
-            best_communities = current_communities
-            
-    # Fallback: all nodes in one community
     if best_communities is None:
         best_communities = [set(eval_graph.nodes())]
 
     result = [sorted(list(c)) for c in best_communities]
     result.sort(key=lambda x: x[0])
-
     return result
 
 
@@ -122,13 +121,39 @@ def assign_louvain(G, partition):
 # -----------------------------
 # Run All community detection algorithms and return results in a structured format
 # -----------------------------
-def run_community_detection(G, max_search_level=None):
+# def run_community_detection(G, max_search_level=None):
 
+#     results = {}
+
+#     # Girvan-Newman
+#     gn_comms = detect_communities_girvan_newman(
+#         G, max_search_level=max_search_level)
+#     gn_map = assign_communities(G, gn_comms, "gn_community")
+
+#     results["girvan_newman"] = {
+#         "communities": gn_comms,
+#         "mapping": gn_map
+#     }
+
+#     # Louvain
+#     lv_comms, lv_partition = detect_communities_louvain(G)
+#     assign_louvain(G, lv_partition)
+
+#     results["louvain"] = {
+#         "communities": lv_comms,
+#         "mapping": lv_partition
+#     }
+
+#     return results
+
+def run_community_detection(G, max_search_level=None):
     results = {}
 
-    # Girvan-Newman
-    gn_comms = detect_communities_girvan_newman(
-        G, max_search_level=max_search_level)
+    lv_comms, lv_partition = detect_communities_louvain(G)
+    target = len(lv_comms) 
+
+
+    gn_comms = detect_communities_girvan_newman(G, target_count=target, max_search_level=max_search_level)
     gn_map = assign_communities(G, gn_comms, "gn_community")
 
     results["girvan_newman"] = {
@@ -136,10 +161,8 @@ def run_community_detection(G, max_search_level=None):
         "mapping": gn_map
     }
 
-    # Louvain
-    lv_comms, lv_partition = detect_communities_louvain(G)
+    # 3. Store Louvain Results
     assign_louvain(G, lv_partition)
-
     results["louvain"] = {
         "communities": lv_comms,
         "mapping": lv_partition
