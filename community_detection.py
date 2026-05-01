@@ -1,34 +1,40 @@
 import networkx as nx
-from networkx.algorithms.community import girvan_newman
+from networkx.algorithms.community import girvan_newman, modularity
 import community as community_louvain
-
 
 # -----------------------------
 # Girvan-Newman
 # -----------------------------
-def detect_communities_girvan_newman(G, level=1):
+
+def detect_communities_girvan_newman(G, max_search_level=10):
 
     # If there are no edges or the graph has only one node, we can consider all nodes as one community
     if G.number_of_edges() == 0 or G.number_of_nodes() <= 1:
         return [list(G.nodes())]
 
-    comp = girvan_newman(G)
-    # First all nodes are in one community, then it splits into 2, then 3, etc. We want to get the communities at the specified level.
-    communities = [set(G.nodes())]
+    eval_graph = G.to_undirected() if G.is_directed() else G
 
-    for _ in range(level):
+    comp_generator = girvan_newman(eval_graph)
+
+    best_mod = -1.0
+    best_communities = [set(eval_graph.nodes())]
+
+    # We iterate up to max_search_level to find the "Sweet Spot"
+    for _ in range(max_search_level):
         try:
-            communities = next(comp)
+            current_communities = next(comp_generator)
+            current_mod = modularity(eval_graph, current_communities)
+
+            # If this level is better, save it!
+            if current_mod > best_mod:
+                best_mod = current_mod
+                best_communities = current_communities
         except StopIteration:
             break
 
-    # Convert from sets to lists for and save in a sorted community list
-    result = []
-    for c in communities:
-        result.append(sorted(list(c)))
-
-    # sort results by the first node in each community for consistent output
+    result = [sorted(list(c)) for c in best_communities]
     result.sort(key=lambda x: x[0])
+
     return result
 
 
@@ -41,8 +47,8 @@ def detect_communities_louvain(G):
     if G.number_of_nodes() == 0:
         return [], {}
 
-  # Louvain works on undirected graphs, so we convert if necessary
-  # Because Louvain focus on connections rather than direction, we can safely ignore edge directions for community detection
+    # Louvain works on undirected graphs, so we convert if necessary
+    # Because Louvain focus on connections rather than direction, we can safely ignore edge directions for community detection
     if G.is_directed():
         G = G.to_undirected()
 
@@ -53,7 +59,7 @@ def detect_communities_louvain(G):
     communities_dict = {}
 
     for node, comm_id in partition.items():
-      # If this community ID hasn't been seen before, initialize a new list for it
+        # If this community ID hasn't been seen before, initialize a new list for it
         if comm_id not in communities_dict:
             communities_dict[comm_id] = []
         # If the community exists append the node to its community
@@ -79,7 +85,7 @@ def detect_communities_louvain(G):
 # Assign each node to a community for Girvan-Newman
 # -----------------------------
 def assign_communities(G, communities, attr_name):
-  # node → community_id
+    # node → community_id
     mapping = {}
 
     # Assign community ID to each node based on the communities list
@@ -102,12 +108,13 @@ def assign_louvain(G, partition):
 # -----------------------------
 # Run All community detection algorithms and return results in a structured format
 # -----------------------------
-def run_community_detection(G, level=1):
+def run_community_detection(G, max_search_level=10):
 
     results = {}
 
     # Girvan-Newman
-    gn_comms = detect_communities_girvan_newman(G, level=level)
+    gn_comms = detect_communities_girvan_newman(
+        G, max_search_level=max_search_level)
     gn_map = assign_communities(G, gn_comms, "gn_community")
 
     results["girvan_newman"] = {
