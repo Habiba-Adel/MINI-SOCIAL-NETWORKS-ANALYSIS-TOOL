@@ -6,31 +6,45 @@ import community as community_louvain
 # Girvan-Newman
 # -----------------------------
 
-def detect_communities_girvan_newman(G, max_search_level=10):
+def detect_communities_girvan_newman(G, max_search_level=None):
 
     # If there are no edges or the graph has only one node, we can consider all nodes as one community
     if G.number_of_edges() == 0 or G.number_of_nodes() <= 1:
         return [list(G.nodes())]
 
     eval_graph = G.to_undirected() if G.is_directed() else G
+    
+    if max_search_level is None:
+        max_search_level = eval_graph.number_of_edges()
 
     comp_generator = girvan_newman(eval_graph)
 
-    best_mod = -1.0
-    best_communities = [set(eval_graph.nodes())]
+    best_mod = None
+    best_communities = None
 
     # We iterate up to max_search_level to find the best level result
     for _ in range(max_search_level):
         try:
             current_communities = next(comp_generator)
-            current_mod = modularity(eval_graph, current_communities)
-
-            # If this level is better, save it!
-            if current_mod > best_mod:
-                best_mod = current_mod
-                best_communities = current_communities
         except StopIteration:
             break
+
+        # Skip trivial single-node-per-community partitions on early iterations
+        if len(current_communities) == eval_graph.number_of_nodes():
+            break
+
+        try:
+            current_mod = modularity(eval_graph, current_communities)
+        except Exception:
+            continue
+
+        if best_mod is None or current_mod > best_mod:
+            best_mod = current_mod
+            best_communities = current_communities
+            
+    # Fallback: all nodes in one community
+    if best_communities is None:
+        best_communities = [set(eval_graph.nodes())]
 
     result = [sorted(list(c)) for c in best_communities]
     result.sort(key=lambda x: x[0])
@@ -108,7 +122,7 @@ def assign_louvain(G, partition):
 # -----------------------------
 # Run All community detection algorithms and return results in a structured format
 # -----------------------------
-def run_community_detection(G, max_search_level=10):
+def run_community_detection(G, max_search_level=None):
 
     results = {}
 
