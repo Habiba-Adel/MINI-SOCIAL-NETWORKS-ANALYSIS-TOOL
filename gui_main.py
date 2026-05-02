@@ -117,8 +117,8 @@ class NetworkAnalystPro(ctk.CTk):
         try:
             is_directed = self.directed_var.get()
             self.G = build_graph(self.node_path, self.edge_path, directed=is_directed)
-            self.G = build_graph(self.node_path, self.edge_path)
             self.metrics, _ = calculate_metrics(self.G)
+
             stats_text = "=== NETWORK METRICS ===\n\n"
             stats_text += f"Total Nodes: {self.G.number_of_nodes()}\n"
             stats_text += f"Total Edges: {self.G.number_of_edges()}\n\n"
@@ -206,32 +206,58 @@ class NetworkAnalystPro(ctk.CTk):
             messagebox.showerror("Input Error", "Please enter valid numbers in the filter boxes!")
 
     def draw_network(self, graph_to_draw):
-     if not graph_to_draw:
-        return
-        
-     self.ax.clear()
-     self.ax.set_axis_off()
+        if not graph_to_draw:
+            return
+            
+        self.ax.clear()
+        self.ax.set_axis_off()
 
-      # Get positions
-     pos = nx.spring_layout(graph_to_draw) # Add your layout logic here
-    
-    # Dynamically scale sizes based on Degree Centrality!
-    # Multiply degree by a factor to make differences visually obvious
-     node_sizes = []
-     for node in graph_to_draw.nodes():
-        # Fallback to 1 if node isn't in metrics (e.g., after filtering)
-        degree = self.metrics.get(node, {}).get("Degree", 0.1) 
-        node_sizes.append(300 + (degree * 2000))
+        # 1. Determine the layout
+        choice = self.layout_menu.get().lower()
+        try:
+            if choice == "circular":
+                pos = nx.circular_layout(graph_to_draw)
+            elif choice == "shell":
+                pos = nx.shell_layout(graph_to_draw)
+            elif choice == "spectral":
+                pos = nx.spectral_layout(graph_to_draw)
+            else:
+                pos = nx.spring_layout(graph_to_draw, k=0.15, iterations=50)
+        except:
+            pos = nx.spring_layout(graph_to_draw)
 
-    # Color by Louvain Community
-     color_map = [graph_to_draw.nodes[node].get('louvain_community', 0) for node in graph_to_draw.nodes()]
 
-     nx.draw(graph_to_draw, pos, ax=self.ax, with_labels=True,
-            node_color=color_map, cmap=plt.cm.tab10, 
-            node_size=node_sizes, edge_color="#888888", width=1.0,
-            alpha=0.9, font_color="white", font_size=9, font_weight="bold")
+        node_sizes = []
+        for node in graph_to_draw.nodes():
+            degree = 0
+            if self.metrics and node in self.metrics:
+                degree = self.metrics[node].get("Degree", 0)
+            
+            node_sizes.append(300 + (degree * 2000))
 
-     self.canvas.draw()
+        color_map = []
+        for node in graph_to_draw.nodes():
+            color_map.append(graph_to_draw.nodes[node].get('louvain_community', 0))
+
+        edge_widths = [graph_to_draw[u][v].get("weight", 1) for u, v in graph_to_draw.edges()]
+
+        nx.draw(
+            graph_to_draw, 
+            pos, 
+            ax=self.ax, 
+            with_labels=True,
+            node_color=color_map, 
+            cmap=plt.cm.tab10,      
+            node_size=node_sizes,   
+            edge_color="#888888",   
+            width=edge_widths,
+            alpha=0.9, 
+            font_color="white", 
+            font_size=9, 
+            font_weight="bold"
+        )
+
+        self.canvas.draw()
 
 if __name__ == "__main__":
     app = NetworkAnalystPro()

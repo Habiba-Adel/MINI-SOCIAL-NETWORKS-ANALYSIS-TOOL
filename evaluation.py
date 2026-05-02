@@ -19,7 +19,7 @@ def to_labels(graph, communities):
     Ensures the labels are aligned with the order of nodes in the graph.
     """
     labels = {}
-    # enumerate gives us a unique ID (0, 1, 2...) for each community set
+    # enumerate gives us a unique ID for each community set
     for id, community in enumerate(communities):
         for node in community:
             labels[node] = id

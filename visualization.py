@@ -53,10 +53,8 @@ def draw_basic_graph(G, layout_type="spring"):
 
 # Graph with Metrics
 
-def draw_graph_with_metrics(G, layout_type="spring"):
+def draw_graph_with_metrics(G, metrics, layout_type="spring"):
     pos = get_layout(G, layout_type)
-
-    metrics, _ = calculate_metrics(G)
 
     pagerank_values = [metrics[n]["Pagerank"] for n in G.nodes()]
     min_pr = min(pagerank_values)
@@ -88,14 +86,10 @@ def draw_graph_with_metrics(G, layout_type="spring"):
 
     plt.show()
 
-# -----------------------------
 # Communities Visualization
 
-def draw_communities(G, layout_type="spring"):
+def draw_communities(G, partition, layout_type="spring"):
     pos = get_layout(G, layout_type)
-
-    results = run_community_detection(G)
-    partition = results["louvain"]["mapping"]
 
     node_colors = [partition[n] for n in G.nodes()]
 
@@ -114,13 +108,8 @@ def draw_communities(G, layout_type="spring"):
 
 
 # Advanced Visualization
-#  -----------------------------
-def draw_advanced(G, layout_type="spring"):
+def draw_advanced(G, metrics, partition, layout_type="spring"):
     pos = get_layout(G, layout_type)
-
-    metrics, _ = calculate_metrics(G)
-    results = run_community_detection(G)
-    partition = results["louvain"]["mapping"]
 
     node_sizes = [300 + metrics[n]["Degree"] * 2000 for n in G.nodes()]
     node_colors = [partition[n] for n in G.nodes()]
@@ -167,7 +156,16 @@ if __name__ == "__main__":
     layout = layouts.get(choice, "spring")
 
     print(f"\n✅ You selected: {layout}")
+    print("⏳ Calculating network metrics and detecting communities. Please wait...")
+    
+    # 1. Calculate everything exactly once
+    metrics, _ = calculate_metrics(G)
+    results = run_community_detection(G)
+    partition = results["louvain"]["mapping"]
+    
+    print("🎨 Drawing graphs...")
+    # 2. Pass the pre-calculated data into the pure drawing functions
     draw_basic_graph(G, layout)
-    draw_graph_with_metrics(G, layout)
-    draw_communities(G, layout)
-    draw_advanced(G, layout)
+    draw_graph_with_metrics(G, metrics, layout)
+    draw_communities(G, partition, layout)
+    draw_advanced(G, metrics, partition, layout)

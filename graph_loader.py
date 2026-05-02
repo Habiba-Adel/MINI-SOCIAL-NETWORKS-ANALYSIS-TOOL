@@ -59,21 +59,37 @@ def build_graph(nodes_path,edges_path,node_id_col='id',source_col='source',targe
 
     # now the next step is to add the nodes with its attributes in this empty graph
     # now each node will have its unique id and its dictinoary of its attributes
-    for _, row in nodes_df.iterrows():
-        node_id = row[node_id_col]
-        attrs = row.drop(node_id_col).to_dict()
-        G.add_node(node_id, **attrs)
+    #optimization of our prev for loop
+    G.add_nodes_from(nodes_df.set_index(node_id_col).to_dict('index').items())
 
     # now we fill the graph with the nodes now it is the turn of the edges
     valid_nodes = set(nodes_df[node_id_col])
 
-    for _, row in edges_df.iterrows():
-        source = row[source_col]
-        target = row[target_col]
-        if source not in valid_nodes or target not in valid_nodes:
-            raise ValueError( f"Edge ({source}, {target}) this edge hasing not existed node")
-        attrs = row.drop([source_col, target_col]).to_dict()
-        G.add_edge(source, target, **attrs)
+   # Create True/False (to be faaasttttt) masks checking if sources/targets are NOT in valid_nodes
+    invalid_sources = ~edges_df[source_col].isin(valid_nodes)
+    invalid_targets = ~edges_df[target_col].isin(valid_nodes)
+    
+    # If any invalid edge exists, raise an error (check if true exists)
+    if invalid_sources.any() or invalid_targets.any():
+        # Grab the very first invalid row to show in the error message
+        bad_row = edges_df[invalid_sources | invalid_targets].iloc[0]
+        raise ValueError(f"Edge ({bad_row[source_col]}, {bad_row[target_col]}) contains a non-existent node.")
+
+    # Add Edges
+    # adds all edges and attributes using NetworkX's built-in Pandas reader
+    extra_columns = [col for col in edges_df.columns if col not in [source_col, target_col]]
+    
+    # We load the edges into a TEMPORARY graph first
+    temp_edge_graph = nx.from_pandas_edgelist(
+        edges_df, 
+        source=source_col, 
+        target=target_col, 
+        edge_attr=extra_columns if len(extra_columns) > 0 else None,
+        create_using=nx.DiGraph() if directed else nx.Graph()
+    )
+    
+    # Then we safely merge the edges into our main graph G (which keeps all node attributes safe!)
+    G.add_edges_from(temp_edge_graph.edges(data=True))
 
     return G
     
